@@ -1,0 +1,32 @@
+iss-consulta/
+├── backend/                   # Backend Node.js + Express
+│   ├── server.js              # Arquivo principal do servidor
+│   └── db/                    # (Opcional) separa configs de banco
+│       └── sqlConfig.js       # Arquivo com as configs do SQL Server
+│
+├── public/                    # Arquivos públicos do React
+│   └── index.html
+│
+├── src/                       # Frontend React
+│   ├── components/            # Componentes reutilizáveis da interface
+│   │   ├── InserirDados.jsx   # Formulário de inserção
+│   │   ├── ConsultarDados.jsx
+│   │   ├── AtualizarDados.jsx
+│   │   └── ExcluirDados.jsx
+│   │
+│   ├── pages/                 # Páginas principais (se houver)
+│   │   └── Home.jsx
+│   │
+│   ├── services/              # Comunicação com o backend
+│   │   └── api.js             # Funções de GET, POST, PUT, DELETE
+│   │
+│   ├── App.jsx                # Estrutura da aplicação
+│   └── main.jsx               # Ponto de entrada do React
+│
+├── package.json
+├── vite.config.js
+└── README.md
+
+
+*******
+ frontend (npm start) e o backend (node backend/server.js)
