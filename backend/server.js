@@ -1,12 +1,17 @@
 import express from 'express';
 import sql from 'mssql';
 import cors from 'cors';
+import authRoutes from './routes/auth.js';
+
+
 
 const app = express();
 const port = 3001;
 
 app.use(cors());
 app.use(express.json());
+
+app.use('/api', authRoutes);
 
 const config = {
   user: 'iss_user',

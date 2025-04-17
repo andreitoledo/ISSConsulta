@@ -4,7 +4,7 @@ import axios from 'axios';
 function PainelConsultaPublica() {
   const [municipio, setMunicipio] = useState('');
   const [servico, setServico] = useState('');
-  const [resultados, setResultados] = useState([]);
+  const [resultado, setResultado] = useState([]);
   const [mensagem, setMensagem] = useState('');
 
   const handleConsulta = async () => {
@@ -12,78 +12,62 @@ function PainelConsultaPublica() {
       const response = await axios.get('http://localhost:3001/api/consulta', {
         params: { municipio, servico }
       });
+      setResultado(response.data);
       if (response.data.length === 0) {
-        setResultados([]);
         setMensagem('Nenhum registro encontrado.');
       } else {
-        setResultados(response.data);
         setMensagem('');
       }
     } catch (err) {
-      setResultados([]);
-      setMensagem('Erro ao consultar os dados.');
+      setMensagem('Erro ao consultar');
     }
   };
 
   return (
-    <div className="bg-gray-50 p-6 rounded shadow space-y-4 ml-4">
-      <h2 className="text-xl font-semibold mb-4">Consulta Pública de Alíquota de ISS</h2>
-
-      <div className="grid md:grid-cols-2 gap-4">
+    <div className="bg-white p-6 rounded shadow max-w-3xl mx-auto mt-10">
+      <h2 className="text-xl font-bold mb-6 text-center text-gray-700">Consulta Pública de Alíquota de ISS</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block font-semibold mb-1">Município</label>
-          <input
-            className="w-full border rounded px-3 py-2"
-            value={municipio}
-            onChange={(e) => setMunicipio(e.target.value)}
-            placeholder="Digite o município"
-          />
+          <label className="block font-semibold">Município</label>
+          <input className="w-full border p-2 rounded" value={municipio} onChange={(e) => setMunicipio(e.target.value)} />
         </div>
         <div>
-          <label className="block font-semibold mb-1">Tipo de Serviço</label>
-          <select
-            className="w-full border rounded px-3 py-2"
-            value={servico}
-            onChange={(e) => setServico(e.target.value)}
-          >
+          <label className="block font-semibold">Tipo de Serviço</label>
+          <select className="w-full border p-2 rounded" value={servico} onChange={(e) => setServico(e.target.value)}>
             <option value="">Selecione</option>
             <option value="16.02">Transporte Municipal - 16.02</option>
             <option value="11.04">Carga e Descarga - 11.04</option>
           </select>
         </div>
       </div>
+      <div className="text-center mt-6">
+        <button onClick={handleConsulta} className="bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800">Consultar</button>
+      </div>
 
-      <button
-        onClick={handleConsulta}
-        className="bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800 mt-4"
-      >
-        Consultar
-      </button>
+      {mensagem && <p className="text-center text-blue-800 mt-4 font-medium">{mensagem}</p>}
 
-      {mensagem && <p className="text-red-600 font-medium mt-4">{mensagem}</p>}
-
-      {resultados.length > 0 && (
-        <div className="mt-6 bg-white p-4 rounded border overflow-x-auto">
-          <table className="w-full text-sm text-left">
+      {resultado.length > 0 && (
+        <div className="mt-6 overflow-x-auto">
+          <table className="w-full text-sm text-left border rounded">
             <thead>
-              <tr className="border-b text-gray-700">
-                <th className="py-2 px-4">Tomador</th>
-                <th className="py-2 px-4">Emissor</th>
-                <th className="py-2 px-4">Município</th>
-                <th className="py-2 px-4">Serviço</th>
-                <th className="py-2 px-4">Alíquota</th>
-                <th className="py-2 px-4">Retenção</th>
+              <tr className="bg-gray-100 border-b">
+                <th className="px-4 py-2">Tomador</th>
+                <th className="px-4 py-2">Emissor</th>
+                <th className="px-4 py-2">Município</th>
+                <th className="px-4 py-2">Serviço</th>
+                <th className="px-4 py-2">Alíquota</th>
+                <th className="px-4 py-2">Retenção</th>
               </tr>
             </thead>
             <tbody>
-              {resultados.map((item, index) => (
-                <tr key={index} className="border-b">
-                  <td className="py-2 px-4">{item.tomador || '-'}</td>
-                  <td className="py-2 px-4">{item.emissor || '-'}</td>
-                  <td className="py-2 px-4">{item.municipio}</td>
-                  <td className="py-2 px-4">{item.servico}</td>
-                  <td className="py-2 px-4">{item.aliquota}%</td>
-                  <td className="py-2 px-4">{item.retencao ? 'Sim' : 'Não'}</td>
+              {resultado.map((r, i) => (
+                <tr key={i} className="border-t">
+                  <td className="px-4 py-2">{r.tomador || '-'}</td>
+                  <td className="px-4 py-2">{r.emissor || '-'}</td>
+                  <td className="px-4 py-2">{r.municipio}</td>
+                  <td className="px-4 py-2">{r.servico}</td>
+                  <td className="px-4 py-2">{r.aliquota}%</td>
+                  <td className="px-4 py-2">{r.retencao ? 'Sim' : 'Não'}</td>
                 </tr>
               ))}
             </tbody>
