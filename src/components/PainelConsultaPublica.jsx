@@ -1,135 +1,173 @@
-// PainelConsultaPublica.jsx com ordenação, paginação, filtro rápido e layout responsivo
+// PainelConsultaPublica.jsx com headers de usuário para log no backend
 import React, { useState } from 'react';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 
 function PainelConsultaPublica() {
   const [municipio, setMunicipio] = useState('');
   const [servico, setServico] = useState('');
   const [resultado, setResultado] = useState([]);
   const [mensagem, setMensagem] = useState('');
+  const [filtro, setFiltro] = useState('');
   const [paginaAtual, setPaginaAtual] = useState(1);
-  const [colunaOrdenada, setColunaOrdenada] = useState('');
+  const [ordenarPor, setOrdenarPor] = useState('');
   const [ordemAsc, setOrdemAsc] = useState(true);
-  const [filtroRapido, setFiltroRapido] = useState('');
   const porPagina = 10;
+
+  const headers = { headers: { usuario: localStorage.getItem('nome') || 'desconhecido' } };
 
   const handleConsulta = async () => {
     try {
       const response = await axios.get('http://localhost:3001/api/consulta', {
-        params: { municipio, servico }
+        params: { municipio, servico },
+        ...headers
       });
       setResultado(response.data);
+      setMensagem(response.data.length === 0 ? 'Nenhum registro encontrado.' : 'Consulta realizada com sucesso.');
       setPaginaAtual(1);
-      setMensagem(response.data.length === 0 ? '⚠️ Nenhum registro encontrado.' : '');
     } catch (err) {
-      setMensagem('❌ Erro ao consultar dados.');
+      setMensagem('Erro ao consultar dados.');
     }
   };
 
-  const handleOrdenar = (coluna) => {
-    const mapa = {
-      'Município': 'municipio',
-      'Serviço': 'servico',
-      'Alíquota': 'aliquota',
-      'Retenção': 'retencao',
-      'Tomador': 'tomador',
-      'Emissor': 'emissor',
-      'Prestação': 'prestacao'
-    };
-    const chave = mapa[coluna];
-    setColunaOrdenada(coluna);
-    setOrdemAsc(colunaOrdenada === coluna ? !ordemAsc : true);
+  const resultadoFiltrado = resultado.filter((item) =>
+    Object.values(item).some((val) => val?.toString().toLowerCase().includes(filtro.toLowerCase()))
+  );
 
-    const ordenar = [...resultado].sort((a, b) => {
-      const valA = (a[chave] ?? '').toString().toLowerCase();
-      const valB = (b[chave] ?? '').toString().toLowerCase();
-      if (!isNaN(valA) && !isNaN(valB)) {
-        return ordemAsc ? valA - valB : valB - valA;
-      }
-      return ordemAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
-    });
-
-    setResultado(ordenar);
-    setPaginaAtual(1);
-  };
-
-  const resultadosFiltrados = resultado.filter((item) => {
-    const busca = filtroRapido.toLowerCase();
-    return (
-      item.municipio?.toLowerCase().includes(busca) ||
-      item.servico?.toLowerCase().includes(busca) ||
-      item.tomador?.toLowerCase().includes(busca) ||
-      item.emissor?.toLowerCase().includes(busca) ||
-      item.prestacao?.toLowerCase().includes(busca)
-    );
+  const resultadoOrdenado = [...resultadoFiltrado].sort((a, b) => {
+    if (!ordenarPor) return 0;
+    const valA = a[ordenarPor]?.toString().toLowerCase();
+    const valB = b[ordenarPor]?.toString().toLowerCase();
+    if (valA < valB) return ordemAsc ? -1 : 1;
+    if (valA > valB) return ordemAsc ? 1 : -1;
+    return 0;
   });
 
-  const totalPaginas = Math.ceil(resultadosFiltrados.length / porPagina);
-  const dadosPaginados = resultadosFiltrados.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina);
+  const totalPaginas = Math.ceil(resultadoOrdenado.length / porPagina);
+  const dadosPaginados = resultadoOrdenado.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina);
+
+  const ordenarColuna = (coluna) => {
+    if (ordenarPor === coluna) {
+      setOrdemAsc(!ordemAsc);
+    } else {
+      setOrdenarPor(coluna);
+      setOrdemAsc(true);
+    }
+  };
+
+  const handleExportarExcel = () => {
+    const planilha = XLSX.utils.json_to_sheet(resultado);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, planilha, 'Aliquotas');
+    XLSX.writeFile(wb, 'consulta_publica.xlsx');
+  };
 
   return (
-    <div className="bg-white p-4 sm:p-6 rounded shadow max-w-6xl mx-auto mt-10">
-      <h2 className="text-xl sm:text-2xl font-bold mb-4 text-center">Consulta Pública</h2>
+    <div className="bg-white p-4 rounded shadow mt-4">
+      <h2 className="text-xl font-bold mb-4">Consulta Pública</h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-        <input className="border p-2 rounded w-full" placeholder="Município" value={municipio} onChange={(e) => setMunicipio(e.target.value)} />
-        <select className="border p-2 rounded w-full" value={servico} onChange={(e) => setServico(e.target.value)}>
-          <option value="">Selecione o Serviço</option>
-          <option value="16.02">Transporte Municipal - 16.02</option>
-          <option value="11.04">Carga e Descarga - 11.04</option>
-        </select>
+      <div className="grid md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">Município</label>
+          <input
+            value={municipio}
+            onChange={(e) => setMunicipio(e.target.value)}
+            className="w-full border px-3 py-2 rounded"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Tipo de Serviço</label>
+          <select
+            value={servico}
+            onChange={(e) => setServico(e.target.value)}
+            className="w-full border px-3 py-2 rounded"
+          >
+            <option value="">Todos</option>
+            <option value="16.02">Transporte Municipal - 16.02</option>
+            <option value="11.04">Carga e Descarga - 11.04</option>
+          </select>
+        </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 sm:gap-4 mb-4">
-        <button onClick={handleConsulta} className="bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800 w-full sm:w-auto">Consultar</button>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-2">
+        <button
+          onClick={handleConsulta}
+          className="bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800"
+        >
+          Consultar
+        </button>
         <input
           type="text"
-          className="border px-3 py-2 rounded w-full sm:flex-grow"
-          placeholder="Filtrar resultados rapidamente..."
-          value={filtroRapido}
-          onChange={(e) => setFiltroRapido(e.target.value)}
+          placeholder="Filtrar resultados..."
+          value={filtro}
+          onChange={(e) => setFiltro(e.target.value)}
+          className="border px-3 py-2 rounded w-full md:w-64"
         />
       </div>
 
-      {mensagem && <p className="text-blue-900 font-medium mt-2 text-center">{mensagem}</p>}
+      {mensagem && <p className="mb-2 font-medium text-sm text-blue-800">{mensagem}</p>}
 
-      {dadosPaginados.length > 0 && (
-        <div className="mt-6 overflow-x-auto">
-          <table className="w-full text-sm text-left border rounded min-w-[800px]">
-            <thead>
-              <tr className="bg-gray-100 border-b">
-                {['Município', 'Serviço', 'Alíquota', 'Retenção', 'Tomador', 'Emissor', 'Prestação'].map((col, index) => (
-                  <th
-                    key={index}
-                    onClick={() => handleOrdenar(col)}
-                    className="px-4 py-2 cursor-pointer hover:underline select-none whitespace-nowrap"
-                  >
-                    {col}{colunaOrdenada === col && (ordemAsc ? ' ▲' : ' ▼')}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {dadosPaginados.map((r, i) => (
-                <tr key={i} className="border-t">
-                  <td className="px-4 py-2 whitespace-nowrap">{r.municipio}</td>
-                  <td className="px-4 py-2 whitespace-nowrap">{r.servico}</td>
-                  <td className="px-4 py-2 whitespace-nowrap">{r.aliquota}%</td>
-                  <td className="px-4 py-2 whitespace-nowrap">{r.retencao ? 'Sim' : 'Não'}</td>
-                  <td className="px-4 py-2 whitespace-nowrap">{r.tomador || '-'}</td>
-                  <td className="px-4 py-2 whitespace-nowrap">{r.emissor || '-'}</td>
-                  <td className="px-4 py-2 whitespace-nowrap">{r.prestacao || '-'}</td>
+      {resultado.length > 0 && (
+        <>
+          <div className="overflow-x-auto">
+            <table className="min-w-full table-auto border text-sm">
+              <thead className="bg-gray-100">
+                <tr>
+                  {['tomador', 'emissor', 'municipio', 'servico', 'aliquota', 'retencao'].map((col) => (
+                    <th
+                      key={col}
+                      onClick={() => ordenarColuna(col)}
+                      className="px-4 py-2 border cursor-pointer text-left"
+                    >
+                      {col.charAt(0).toUpperCase() + col.slice(1)}{' '}
+                      {ordenarPor === col && (ordemAsc ? '▲' : '▼')}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <div className="flex flex-wrap justify-center mt-4 gap-2">
-            <button onClick={() => setPaginaAtual(p => Math.max(1, p - 1))} disabled={paginaAtual === 1} className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">Anterior</button>
-            <span className="px-3 py-1">Página {paginaAtual} de {totalPaginas}</span>
-            <button onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))} disabled={paginaAtual === totalPaginas} className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">Próxima</button>
+              </thead>
+              <tbody>
+                {dadosPaginados.map((item, idx) => (
+                  <tr key={idx} className="border-t">
+                    <td className="px-4 py-1">{item.tomador || '-'}</td>
+                    <td className="px-4 py-1">{item.emissor || '-'}</td>
+                    <td className="px-4 py-1">{item.municipio}</td>
+                    <td className="px-4 py-1">{item.servico}</td>
+                    <td className="px-4 py-1">{item.aliquota}%</td>
+                    <td className="px-4 py-1">{item.retencao ? 'Sim' : 'Não'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
+
+          <div className="flex justify-between items-center mt-4 text-sm">
+            <div>
+              Página {paginaAtual} de {totalPaginas}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPaginaAtual((p) => Math.max(p - 1, 1))}
+                disabled={paginaAtual === 1}
+                className="px-2 py-1 bg-gray-300 rounded disabled:opacity-50"
+              >
+                Anterior
+              </button>
+              <button
+                onClick={() => setPaginaAtual((p) => Math.min(p + 1, totalPaginas))}
+                disabled={paginaAtual === totalPaginas}
+                className="px-2 py-1 bg-gray-300 rounded disabled:opacity-50"
+              >
+                Próxima
+              </button>
+            </div>
+            <button
+              onClick={handleExportarExcel}
+              className="bg-green-600 text-white px-4 py-1 rounded hover:bg-green-700"
+            >
+              Exportar Excel
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
