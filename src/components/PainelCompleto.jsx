@@ -1,8 +1,10 @@
-// PainelCompleto.jsx com exportação para Excel
+// PainelCompleto.jsx com ordenação nas colunas
 import React, { useState } from 'react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 function PainelCompleto() {
   const [municipio, setMunicipio] = useState('');
@@ -17,6 +19,8 @@ function PainelCompleto() {
   const [linhaSelecionada, setLinhaSelecionada] = useState(null);
   const [idSelecionado, setIdSelecionado] = useState(null);
   const [paginaAtual, setPaginaAtual] = useState(1);
+  const [colunaOrdenada, setColunaOrdenada] = useState('');
+  const [ordemAsc, setOrdemAsc] = useState(true);
   const porPagina = 10;
 
   const exibirMensagem = (texto) => {
@@ -57,6 +61,37 @@ function PainelCompleto() {
       exibirMensagem('❌ Erro ao consultar');
     }
   };
+
+  const handleOrdenar = (coluna) => {
+    const mapa = {
+      'Município': 'municipio',
+      'Serviço': 'servico',
+      'Alíquota': 'aliquota',
+      'Retenção': 'retencao',
+      'Tomador': 'tomador',
+      'Emissor': 'emissor',
+      'Prestação': 'prestacao',
+    };
+  
+    const chave = mapa[coluna];
+    setColunaOrdenada(coluna);
+    setOrdemAsc(colunaOrdenada === coluna ? !ordemAsc : true);
+  
+    const ordenar = [...resultado].sort((a, b) => {
+      const valA = (a[chave] ?? '').toString().toLowerCase();
+      const valB = (b[chave] ?? '').toString().toLowerCase();
+  
+      if (!isNaN(valA) && !isNaN(valB)) {
+        return ordemAsc ? valA - valB : valB - valA;
+      }
+  
+      return ordemAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    });
+  
+    setResultado(ordenar);
+    setPaginaAtual(1);
+  };
+  
 
   const handleExportarExcel = () => {
     const planilha = XLSX.utils.json_to_sheet(resultado);
@@ -172,13 +207,15 @@ function PainelCompleto() {
           <table className="w-full text-sm text-left border rounded">
             <thead>
               <tr className="bg-gray-100 border-b">
-                <th className="px-4 py-2">Município</th>
-                <th className="px-4 py-2">Serviço</th>
-                <th className="px-4 py-2">Alíquota</th>
-                <th className="px-4 py-2">Retenção</th>
-                <th className="px-4 py-2">Tomador</th>
-                <th className="px-4 py-2">Emissor</th>
-                <th className="px-4 py-2">Prestação</th>
+                {['Município', 'Serviço', 'Alíquota', 'Retenção', 'Tomador', 'Emissor', 'Prestação'].map((col, index) => (
+                  <th
+                    key={index}
+                    onClick={() => handleOrdenar(col)}
+                    className="px-4 py-2 cursor-pointer hover:underline select-none"
+                  >
+                    {col}{colunaOrdenada === col && (ordemAsc ? ' ▲' : ' ▼')}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
