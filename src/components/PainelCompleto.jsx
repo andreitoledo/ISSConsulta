@@ -12,6 +12,7 @@ function PainelCompleto() {
   const [mensagem, setMensagem] = useState('');
   const [resultado, setResultado] = useState([]);
   const [idSelecionado, setIdSelecionado] = useState(null);
+  const [linhaSelecionada, setLinhaSelecionada] = useState(null);
 
   const limparCampos = () => {
     setMunicipio('');
@@ -21,9 +22,14 @@ function PainelCompleto() {
     setServico('');
     setAliquota('');
     setRetencao(false);
-    setMensagem('');
     setResultado([]);
     setIdSelecionado(null);
+    setLinhaSelecionada(null);
+  };
+
+  const exibirMensagem = (texto) => {
+    setMensagem(texto);
+    setTimeout(() => setMensagem(''), 4000);
   };
 
   const handleConsulta = async () => {
@@ -32,13 +38,15 @@ function PainelCompleto() {
         params: { municipio, servico }
       });
       setResultado(response.data);
-      setMensagem(response.data.length === 0 ? 'Nenhum registro encontrado.' : '');
+      if (response.data.length === 0) {
+        exibirMensagem('⚠️ Nenhum registro encontrado.');
+      }
     } catch (err) {
-      setMensagem('Erro ao consultar');
+      exibirMensagem('❌ Erro ao consultar');
     }
   };
 
-  const handleLinhaSelecionada = (linha) => {
+  const handleLinhaSelecionada = (linha, index) => {
     setMunicipio(linha.municipio);
     setPrestacao(linha.prestacao || '');
     setEmissor(linha.emissor || '');
@@ -47,6 +55,7 @@ function PainelCompleto() {
     setAliquota(linha.aliquota);
     setRetencao(linha.retencao);
     setIdSelecionado(linha.id);
+    setLinhaSelecionada(index);
   };
 
   const handleInserir = async () => {
@@ -60,15 +69,15 @@ function PainelCompleto() {
         prestacao,
         emissor
       });
-      setMensagem('Registro inserido com sucesso.');
+      exibirMensagem('✅ Registro inserido com sucesso.');
       limparCampos();
     } catch (err) {
-      setMensagem('Erro ao inserir registro.');
+      exibirMensagem('❌ Erro ao inserir registro.');
     }
   };
 
   const handleAlterar = async () => {
-    if (!idSelecionado) return setMensagem('Selecione uma linha para alterar.');
+    if (!idSelecionado) return exibirMensagem('⚠️ Selecione uma linha para alterar.');
     try {
       const response = await axios.put('http://localhost:3001/api/alterar', {
         id: idSelecionado,
@@ -80,15 +89,15 @@ function PainelCompleto() {
         prestacao,
         emissor
       });
-      setMensagem(response.data.message);
+      exibirMensagem(response.data.message);
       limparCampos();
     } catch (err) {
-      setMensagem('Erro ao alterar registro.');
+      exibirMensagem('❌ Erro ao alterar registro.');
     }
   };
 
   const handleExcluir = async () => {
-    if (!idSelecionado) return setMensagem('Selecione uma linha para excluir.');
+    if (!idSelecionado) return exibirMensagem('⚠️ Selecione uma linha para excluir.');
     const confirmacao = window.confirm('Tem certeza que deseja excluir este registro?');
     if (!confirmacao) return;
 
@@ -96,10 +105,10 @@ function PainelCompleto() {
       const response = await axios.delete('http://localhost:3001/api/excluir', {
         data: { id: idSelecionado }
       });
-      setMensagem(response.data.message);
+      exibirMensagem(response.data.message);
       limparCampos();
     } catch (err) {
-      setMensagem('Erro ao excluir registro.');
+      exibirMensagem('❌ Erro ao excluir registro.');
     }
   };
 
@@ -149,7 +158,7 @@ function PainelCompleto() {
             </thead>
             <tbody>
               {resultado.map((r, i) => (
-                <tr key={i} onClick={() => handleLinhaSelecionada(r)} className="border-t cursor-pointer hover:bg-blue-50">
+                <tr key={i} onClick={() => handleLinhaSelecionada(r, i)} className={`border-t cursor-pointer hover:bg-blue-50 ${linhaSelecionada === i ? 'bg-blue-100 font-semibold' : ''}`}>
                   <td className="px-4 py-2">{r.municipio}</td>
                   <td className="px-4 py-2">{r.servico}</td>
                   <td className="px-4 py-2">{r.aliquota}%</td>
