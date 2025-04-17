@@ -1,6 +1,8 @@
-// PainelCompleto.jsx com paginação e filtro avançado
+// PainelCompleto.jsx com exportação para Excel
 import React, { useState } from 'react';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 function PainelCompleto() {
   const [municipio, setMunicipio] = useState('');
@@ -54,6 +56,15 @@ function PainelCompleto() {
     } catch (err) {
       exibirMensagem('❌ Erro ao consultar');
     }
+  };
+
+  const handleExportarExcel = () => {
+    const planilha = XLSX.utils.json_to_sheet(resultado);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, planilha, 'Aliquotas');
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const arquivo = new Blob([excelBuffer], { type: 'application/octet-stream' });
+    saveAs(arquivo, 'aliquotas_iss.xlsx');
   };
 
   const handleLinhaSelecionada = (linha, index) => {
@@ -151,6 +162,7 @@ function PainelCompleto() {
         <button onClick={handleAlterar} className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700">Alterar</button>
         <button onClick={handleExcluir} className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800">Excluir</button>
         <button onClick={limparCampos} className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">Limpar Campos</button>
+        <button onClick={handleExportarExcel} className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">📥 Exportar Excel</button>
       </div>
 
       {mensagem && <p className="text-blue-900 font-medium mt-4">{mensagem}</p>}
