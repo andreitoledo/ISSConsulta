@@ -1,10 +1,7 @@
-// PainelCompleto.jsx com ordenação nas colunas
+// PainelCompleto.jsx com seleção de linha, paginação, filtro, ordenação e layout responsivo
 import React, { useState } from 'react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
-import { saveAs } from 'file-saver';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 
 function PainelCompleto() {
   const [municipio, setMunicipio] = useState('');
@@ -16,17 +13,12 @@ function PainelCompleto() {
   const [retencao, setRetencao] = useState(false);
   const [mensagem, setMensagem] = useState('');
   const [resultado, setResultado] = useState([]);
-  const [linhaSelecionada, setLinhaSelecionada] = useState(null);
-  const [idSelecionado, setIdSelecionado] = useState(null);
+  const [filtro, setFiltro] = useState('');
   const [paginaAtual, setPaginaAtual] = useState(1);
-  const [colunaOrdenada, setColunaOrdenada] = useState('');
+  const [selecionado, setSelecionado] = useState(null);
+  const [ordenarPor, setOrdenarPor] = useState('');
   const [ordemAsc, setOrdemAsc] = useState(true);
   const porPagina = 10;
-
-  const exibirMensagem = (texto) => {
-    setMensagem(texto);
-    setTimeout(() => setMensagem(''), 4000);
-  };
 
   const limparCampos = () => {
     setMunicipio('');
@@ -36,87 +28,28 @@ function PainelCompleto() {
     setServico('');
     setAliquota('');
     setRetencao(false);
+    setMensagem('');
     setResultado([]);
-    setIdSelecionado(null);
-    setLinhaSelecionada(null);
+    setFiltro('');
+    setSelecionado(null);
   };
 
   const handleConsulta = async () => {
     try {
       const response = await axios.get('http://localhost:3001/api/consulta', {
-        params: {
-          municipio,
-          servico,
-          tomador: tomador || undefined,
-          prestacao: prestacao || undefined,
-          emissor: emissor || undefined
-        }
+        params: { municipio, servico, prestacao, tomador, emissor, aliquota }
       });
       setResultado(response.data);
+      setMensagem(response.data.length === 0 ? 'Nenhum registro encontrado.' : 'Consulta realizada com sucesso.');
       setPaginaAtual(1);
-      if (response.data.length === 0) {
-        exibirMensagem('⚠️ Nenhum registro encontrado.');
-      }
     } catch (err) {
-      exibirMensagem('❌ Erro ao consultar');
+      setMensagem('Erro ao consultar dados.');
     }
-  };
-
-  const handleOrdenar = (coluna) => {
-    const mapa = {
-      'Município': 'municipio',
-      'Serviço': 'servico',
-      'Alíquota': 'aliquota',
-      'Retenção': 'retencao',
-      'Tomador': 'tomador',
-      'Emissor': 'emissor',
-      'Prestação': 'prestacao',
-    };
-  
-    const chave = mapa[coluna];
-    setColunaOrdenada(coluna);
-    setOrdemAsc(colunaOrdenada === coluna ? !ordemAsc : true);
-  
-    const ordenar = [...resultado].sort((a, b) => {
-      const valA = (a[chave] ?? '').toString().toLowerCase();
-      const valB = (b[chave] ?? '').toString().toLowerCase();
-  
-      if (!isNaN(valA) && !isNaN(valB)) {
-        return ordemAsc ? valA - valB : valB - valA;
-      }
-  
-      return ordemAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
-    });
-  
-    setResultado(ordenar);
-    setPaginaAtual(1);
-  };
-  
-
-  const handleExportarExcel = () => {
-    const planilha = XLSX.utils.json_to_sheet(resultado);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, planilha, 'Aliquotas');
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    const arquivo = new Blob([excelBuffer], { type: 'application/octet-stream' });
-    saveAs(arquivo, 'aliquotas_iss.xlsx');
-  };
-
-  const handleLinhaSelecionada = (linha, index) => {
-    setMunicipio(linha.municipio);
-    setPrestacao(linha.prestacao || '');
-    setEmissor(linha.emissor || '');
-    setTomador(linha.tomador || '');
-    setServico(linha.servico);
-    setAliquota(linha.aliquota);
-    setRetencao(linha.retencao);
-    setIdSelecionado(linha.id);
-    setLinhaSelecionada(index);
   };
 
   const handleInserir = async () => {
     try {
-      await axios.post('http://localhost:3001/api/inserir', {
+      const response = await axios.post('http://localhost:3001/api/inserir', {
         municipio,
         servico,
         aliquota: parseFloat(aliquota),
@@ -125,18 +58,18 @@ function PainelCompleto() {
         prestacao,
         emissor
       });
-      exibirMensagem('✅ Registro inserido com sucesso.');
+      setMensagem(response.data.message);
       limparCampos();
     } catch (err) {
-      exibirMensagem('❌ Erro ao inserir registro.');
+      setMensagem('Erro ao inserir registro.');
     }
   };
 
   const handleAlterar = async () => {
-    if (!idSelecionado) return exibirMensagem('⚠️ Selecione uma linha para alterar.');
     try {
+      if (!selecionado || !selecionado.id) return setMensagem('Selecione um registro na tabela.');
       const response = await axios.put('http://localhost:3001/api/alterar', {
-        id: idSelecionado,
+        id: selecionado.id,
         municipio,
         servico,
         aliquota: parseFloat(aliquota),
@@ -145,89 +78,143 @@ function PainelCompleto() {
         prestacao,
         emissor
       });
-      exibirMensagem(response.data.message);
-      limparCampos();
-    } catch (err) {
-      exibirMensagem('❌ Erro ao alterar registro.');
+      setMensagem(response.data.message);
+      handleConsulta();
+    } catch {
+      setMensagem('Erro ao alterar registro.');
     }
   };
 
   const handleExcluir = async () => {
-    if (!idSelecionado) return exibirMensagem('⚠️ Selecione uma linha para excluir.');
-    const confirmacao = window.confirm('Tem certeza que deseja excluir este registro?');
-    if (!confirmacao) return;
-
+    const confirmar = window.confirm('Deseja realmente excluir este registro?');
+    if (!confirmar) return;
     try {
+      if (!selecionado || !selecionado.id) return setMensagem('Selecione um registro na tabela.');
       const response = await axios.delete('http://localhost:3001/api/excluir', {
-        data: { id: idSelecionado }
+        data: { id: selecionado.id }
       });
-      exibirMensagem(response.data.message);
+      setMensagem(response.data.message);
       limparCampos();
-    } catch (err) {
-      exibirMensagem('❌ Erro ao excluir registro.');
+    } catch {
+      setMensagem('Erro ao excluir registro.');
     }
   };
 
-  const totalPaginas = Math.ceil(resultado.length / porPagina);
-  const dadosPaginados = resultado.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina);
+  const handleExportarExcel = () => {
+    const planilha = XLSX.utils.json_to_sheet(resultado);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, planilha, 'Aliquotas');
+    XLSX.writeFile(wb, 'aliquotas.xlsx');
+  };
+
+  const resultadoFiltrado = resultado.filter((item) =>
+    Object.values(item).some((val) => val?.toString().toLowerCase().includes(filtro.toLowerCase()))
+  );
+
+  const resultadoOrdenado = [...resultadoFiltrado].sort((a, b) => {
+    if (!ordenarPor) return 0;
+    const valA = a[ordenarPor]?.toString().toLowerCase();
+    const valB = b[ordenarPor]?.toString().toLowerCase();
+    if (valA < valB) return ordemAsc ? -1 : 1;
+    if (valA > valB) return ordemAsc ? 1 : -1;
+    return 0;
+  });
+
+  const totalPaginas = Math.ceil(resultadoOrdenado.length / porPagina);
+  const dadosPaginados = resultadoOrdenado.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina);
+
+  const preencherCampos = (item) => {
+    setSelecionado(item);
+    setMunicipio(item.municipio || '');
+    setPrestacao(item.prestacao || '');
+    setEmissor(item.emissor || '');
+    setTomador(item.tomador || '');
+    setServico(item.servico || '');
+    setAliquota(item.aliquota || '');
+    setRetencao(item.retencao || false);
+  };
+
+  const ordenarColuna = (coluna) => {
+    if (ordenarPor === coluna) {
+      setOrdemAsc(!ordemAsc);
+    } else {
+      setOrdenarPor(coluna);
+      setOrdemAsc(true);
+    }
+  };
 
   return (
-    <div className="bg-white p-6 rounded shadow max-w-5xl mx-auto">
-      <h2 className="text-xl font-bold mb-4 text-center">Consulta Completa</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <input className="border p-2 rounded" placeholder="Município" value={municipio} onChange={(e) => setMunicipio(e.target.value)} />
-        <input className="border p-2 rounded" placeholder="Prestação" value={prestacao} onChange={(e) => setPrestacao(e.target.value)} />
-        <input className="border p-2 rounded" placeholder="Emissor" value={emissor} onChange={(e) => setEmissor(e.target.value)} />
-        <input className="border p-2 rounded" placeholder="Tomador" value={tomador} onChange={(e) => setTomador(e.target.value)} />
-        <select className="border p-2 rounded" value={servico} onChange={(e) => setServico(e.target.value)}>
+    <div className="bg-white p-4 sm:p-6 rounded shadow max-w-6xl mx-auto">
+      <h2 className="text-2xl font-bold mb-4 text-center">Painel Completo</h2>
+
+      <div className="grid sm:grid-cols-3 gap-4 mb-4">
+        <input className="border rounded px-3 py-2" placeholder="Município" value={municipio} onChange={(e) => setMunicipio(e.target.value)} />
+        <input className="border rounded px-3 py-2" placeholder="Prestação" value={prestacao} onChange={(e) => setPrestacao(e.target.value)} />
+        <input className="border rounded px-3 py-2" placeholder="Emissor" value={emissor} onChange={(e) => setEmissor(e.target.value)} />
+        <input className="border rounded px-3 py-2" placeholder="Tomador" value={tomador} onChange={(e) => setTomador(e.target.value)} />
+        <select className="border rounded px-3 py-2" value={servico} onChange={(e) => setServico(e.target.value)}>
           <option value="">Selecione o Serviço</option>
           <option value="16.02">Transporte Municipal - 16.02</option>
           <option value="11.04">Carga e Descarga - 11.04</option>
         </select>
-        <input className="border p-2 rounded" placeholder="Alíquota (%)" type="number" value={aliquota} onChange={(e) => setAliquota(e.target.value)} />
-        <div className="col-span-3 flex items-center gap-2 mt-2">
-          <input type="checkbox" id="retencao" checked={retencao} onChange={(e) => setRetencao(e.target.checked)} className="mr-2" />
-          <label htmlFor="retencao" className="font-medium">Há retenção?</label>
-        </div>
+        <input className="border rounded px-3 py-2" type="number" placeholder="Alíquota (%)" value={aliquota} onChange={(e) => setAliquota(e.target.value)} />
       </div>
 
-      <div className="flex flex-wrap gap-4 mt-4">
+      <div className="flex items-center gap-3 mb-4">
+        <input type="checkbox" checked={retencao} onChange={(e) => setRetencao(e.target.checked)} />
+        <label className="font-medium">Há retenção?</label>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-6">
         <button onClick={handleConsulta} className="bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800">Consultar</button>
         <button onClick={handleInserir} className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800">Inserir</button>
         <button onClick={handleAlterar} className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700">Alterar</button>
         <button onClick={handleExcluir} className="bg-red-700 text-white px-4 py-2 rounded hover:bg-red-800">Excluir</button>
         <button onClick={limparCampos} className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">Limpar Campos</button>
-        <button onClick={handleExportarExcel} className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">📥 Exportar Excel</button>
+        <button onClick={handleExportarExcel} className="bg-slate-600 text-white px-4 py-2 rounded hover:bg-slate-700">Exportar Excel</button>
       </div>
 
-      {mensagem && <p className="text-blue-900 font-medium mt-4">{mensagem}</p>}
+      <input
+        type="text"
+        className="border px-3 py-2 rounded w-full mb-4"
+        placeholder="Filtrar resultados rapidamente..."
+        value={filtro}
+        onChange={(e) => setFiltro(e.target.value)}
+      />
+
+      {mensagem && <p className="text-blue-900 font-medium mb-4">{mensagem}</p>}
 
       {dadosPaginados.length > 0 && (
-        <div className="mt-6 overflow-x-auto">
-          <table className="w-full text-sm text-left border rounded">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left border rounded min-w-[800px]">
             <thead>
               <tr className="bg-gray-100 border-b">
-                {['Município', 'Serviço', 'Alíquota', 'Retenção', 'Tomador', 'Emissor', 'Prestação'].map((col, index) => (
+                {['municipio', 'servico', 'aliquota', 'retencao', 'tomador', 'emissor', 'prestacao'].map((coluna) => (
                   <th
-                    key={index}
-                    onClick={() => handleOrdenar(col)}
-                    className="px-4 py-2 cursor-pointer hover:underline select-none"
+                    key={coluna}
+                    onClick={() => ordenarColuna(coluna)}
+                    className="px-4 py-2 cursor-pointer hover:underline"
                   >
-                    {col}{colunaOrdenada === col && (ordemAsc ? ' ▲' : ' ▼')}
+                    {coluna.charAt(0).toUpperCase() + coluna.slice(1)}
+                    {ordenarPor === coluna && (ordemAsc ? ' ▲' : ' ▼')}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {dadosPaginados.map((r, i) => (
-                <tr key={i} onClick={() => handleLinhaSelecionada(r, i)} className={`border-t cursor-pointer hover:bg-blue-50 ${linhaSelecionada === i ? 'bg-blue-100 font-semibold' : ''}`}>
-                  <td className="px-4 py-2">{r.municipio}</td>
-                  <td className="px-4 py-2">{r.servico}</td>
-                  <td className="px-4 py-2">{r.aliquota}%</td>
-                  <td className="px-4 py-2">{r.retencao ? 'Sim' : 'Não'}</td>
-                  <td className="px-4 py-2">{r.tomador || '-'}</td>
-                  <td className="px-4 py-2">{r.emissor || '-'}</td>
-                  <td className="px-4 py-2">{r.prestacao || '-'}</td>
+              {dadosPaginados.map((item, i) => (
+                <tr
+                  key={i}
+                  className={`border-t cursor-pointer ${selecionado?.id === item.id ? 'bg-blue-100' : 'hover:bg-gray-100'}`}
+                  onClick={() => preencherCampos(item)}
+                >
+                  <td className="px-4 py-2">{item.municipio}</td>
+                  <td className="px-4 py-2">{item.servico}</td>
+                  <td className="px-4 py-2">{item.aliquota}%</td>
+                  <td className="px-4 py-2">{item.retencao ? 'Sim' : 'Não'}</td>
+                  <td className="px-4 py-2">{item.tomador}</td>
+                  <td className="px-4 py-2">{item.emissor}</td>
+                  <td className="px-4 py-2">{item.prestacao}</td>
                 </tr>
               ))}
             </tbody>
