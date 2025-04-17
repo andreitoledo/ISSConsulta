@@ -1,4 +1,4 @@
-// PainelConsultaPublica.jsx atualizado com mensagens e clique em linha
+// PainelConsultaPublica.jsx com paginação
 import React, { useState } from 'react';
 import axios from 'axios';
 
@@ -8,6 +8,8 @@ function PainelConsultaPublica() {
   const [resultados, setResultados] = useState([]);
   const [mensagem, setMensagem] = useState('');
   const [linhaSelecionada, setLinhaSelecionada] = useState(null);
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const porPagina = 10;
 
   const exibirMensagem = (texto) => {
     setMensagem(texto);
@@ -20,11 +22,15 @@ function PainelConsultaPublica() {
         params: { municipio, servico }
       });
       setResultados(response.data);
+      setPaginaAtual(1);
       setMensagem(response.data.length === 0 ? '⚠️ Nenhum registro encontrado.' : '');
     } catch (error) {
       exibirMensagem('❌ Erro ao consultar dados.');
     }
   };
+
+  const totalPaginas = Math.ceil(resultados.length / porPagina);
+  const dadosPaginados = resultados.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina);
 
   return (
     <div className="bg-white p-6 rounded shadow max-w-4xl mx-auto mt-8">
@@ -41,7 +47,7 @@ function PainelConsultaPublica() {
 
       {mensagem && <p className="text-blue-900 font-medium mt-4">{mensagem}</p>}
 
-      {resultados.length > 0 && (
+      {dadosPaginados.length > 0 && (
         <div className="mt-6 overflow-x-auto">
           <table className="w-full text-sm text-left border rounded">
             <thead>
@@ -55,7 +61,7 @@ function PainelConsultaPublica() {
               </tr>
             </thead>
             <tbody>
-              {resultados.map((r, i) => (
+              {dadosPaginados.map((r, i) => (
                 <tr
                   key={i}
                   onClick={() => setLinhaSelecionada(i)}
@@ -71,6 +77,13 @@ function PainelConsultaPublica() {
               ))}
             </tbody>
           </table>
+
+          {/* Paginação */}
+          <div className="flex justify-center mt-4 gap-2">
+            <button onClick={() => setPaginaAtual(p => Math.max(1, p - 1))} disabled={paginaAtual === 1} className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">Anterior</button>
+            <span className="px-3 py-1">Página {paginaAtual} de {totalPaginas}</span>
+            <button onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))} disabled={paginaAtual === totalPaginas} className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">Próxima</button>
+          </div>
         </div>
       )}
     </div>
