@@ -1,4 +1,4 @@
-// PainelCompleto.jsx com paginação
+// PainelCompleto.jsx com paginação e filtro avançado
 import React, { useState } from 'react';
 import axios from 'axios';
 
@@ -38,7 +38,13 @@ function PainelCompleto() {
   const handleConsulta = async () => {
     try {
       const response = await axios.get('http://localhost:3001/api/consulta', {
-        params: { municipio, servico }
+        params: {
+          municipio,
+          servico,
+          tomador: tomador || undefined,
+          prestacao: prestacao || undefined,
+          emissor: emissor || undefined
+        }
       });
       setResultado(response.data);
       setPaginaAtual(1);

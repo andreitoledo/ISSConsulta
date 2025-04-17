@@ -32,34 +32,41 @@ sql.connect(config).then(() => {
 
 // Consulta - esta OK
 app.get('/api/consulta', async (req, res) => {
-  const { municipio, servico } = req.query;
-
-  if (!municipio) {
-    return res.status(400).json({ message: 'Município é obrigatório para consulta.' });
-  }
-
-  let query = 'SELECT * FROM aliquotas_iss WHERE LOWER(municipio) = LOWER(@municipio)';
-  const params = [{ name: 'municipio', type: sql.VarChar, value: municipio }];
-
-  if (servico) {
-    query += ' AND servico = @servico';
-    params.push({ name: 'servico', type: sql.VarChar, value: servico });
-  }
+  const { municipio, servico, tomador, emissor, prestacao } = req.query;
 
   try {
     const pool = await sql.connect(config);
+    let query = 'SELECT * FROM aliquotas_iss WHERE 1=1';
     const request = pool.request();
-    params.forEach(param => {
-      request.input(param.name, param.type, param.value);
-    });
+
+    if (municipio) {
+      query += ' AND LOWER(municipio) = LOWER(@municipio)';
+      request.input('municipio', sql.VarChar, municipio);
+    }
+    if (servico) {
+      query += ' AND servico = @servico';
+      request.input('servico', sql.VarChar, servico);
+    }
+    if (tomador) {
+      query += ' AND LOWER(tomador) = LOWER(@tomador)';
+      request.input('tomador', sql.VarChar, tomador);
+    }
+    if (emissor) {
+      query += ' AND LOWER(emissor) = LOWER(@emissor)';
+      request.input('emissor', sql.VarChar, emissor);
+    }
+    if (prestacao) {
+      query += ' AND LOWER(prestacao) = LOWER(@prestacao)';
+      request.input('prestacao', sql.VarChar, prestacao);
+    }
 
     const result = await request.query(query);
     res.json(result.recordset);
   } catch (err) {
-    console.error('Erro ao consultar:', err);
     res.status(500).json({ message: 'Erro ao consultar', error: err });
   }
 });
+
 
 // Inserir - esta OK
 app.post('/api/inserir', async (req, res) => {
