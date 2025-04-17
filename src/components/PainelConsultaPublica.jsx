@@ -1,4 +1,4 @@
-// PainelConsultaPublica.jsx com ordenação nas colunas
+// PainelConsultaPublica.jsx com ordenação, paginação e filtro rápido
 import React, { useState } from 'react';
 import axios from 'axios';
 
@@ -10,6 +10,7 @@ function PainelConsultaPublica() {
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [colunaOrdenada, setColunaOrdenada] = useState('');
   const [ordemAsc, setOrdemAsc] = useState(true);
+  const [filtroRapido, setFiltroRapido] = useState('');
   const porPagina = 10;
 
   const handleConsulta = async () => {
@@ -19,11 +20,7 @@ function PainelConsultaPublica() {
       });
       setResultado(response.data);
       setPaginaAtual(1);
-      if (response.data.length === 0) {
-        setMensagem('⚠️ Nenhum registro encontrado.');
-      } else {
-        setMensagem('');
-      }
+      setMensagem(response.data.length === 0 ? '⚠️ Nenhum registro encontrado.' : '');
     } catch (err) {
       setMensagem('❌ Erro ao consultar dados.');
     }
@@ -46,7 +43,6 @@ function PainelConsultaPublica() {
     const ordenar = [...resultado].sort((a, b) => {
       const valA = (a[chave] ?? '').toString().toLowerCase();
       const valB = (b[chave] ?? '').toString().toLowerCase();
-
       if (!isNaN(valA) && !isNaN(valB)) {
         return ordemAsc ? valA - valB : valB - valA;
       }
@@ -57,8 +53,19 @@ function PainelConsultaPublica() {
     setPaginaAtual(1);
   };
 
-  const totalPaginas = Math.ceil(resultado.length / porPagina);
-  const dadosPaginados = resultado.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina);
+  const resultadosFiltrados = resultado.filter((item) => {
+    const busca = filtroRapido.toLowerCase();
+    return (
+      item.municipio?.toLowerCase().includes(busca) ||
+      item.servico?.toLowerCase().includes(busca) ||
+      item.tomador?.toLowerCase().includes(busca) ||
+      item.emissor?.toLowerCase().includes(busca) ||
+      item.prestacao?.toLowerCase().includes(busca)
+    );
+  });
+
+  const totalPaginas = Math.ceil(resultadosFiltrados.length / porPagina);
+  const dadosPaginados = resultadosFiltrados.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina);
 
   return (
     <div className="bg-white p-6 rounded shadow max-w-5xl mx-auto mt-10">
@@ -72,9 +79,18 @@ function PainelConsultaPublica() {
         </select>
       </div>
 
-      <button onClick={handleConsulta} className="bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800">Consultar</button>
+      <div className="flex justify-between items-center gap-4 mb-4">
+        <button onClick={handleConsulta} className="bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800">Consultar</button>
+        <input
+          type="text"
+          className="border px-3 py-2 rounded flex-grow"
+          placeholder="Filtrar resultados rapidamente..."
+          value={filtroRapido}
+          onChange={(e) => setFiltroRapido(e.target.value)}
+        />
+      </div>
 
-      {mensagem && <p className="text-blue-900 font-medium mt-4">{mensagem}</p>}
+      {mensagem && <p className="text-blue-900 font-medium mt-2">{mensagem}</p>}
 
       {dadosPaginados.length > 0 && (
         <div className="mt-6 overflow-x-auto">
