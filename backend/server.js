@@ -294,3 +294,93 @@ app.delete('/api/usuarios/:id', async (req, res) => {
     res.status(500).json({ message: 'Erro ao excluir usuário', error: err.message });
   }
 });
+
+
+// GERENCIAMENTO DE USUÁRIOS COM REGISTRO DE LOG
+app.get('/api/usuarios', async (req, res) => {
+  try {
+    const pool = await sql.connect(config);
+    const result = await pool.request().query('SELECT id, nome, email, perfil FROM usuarios ORDER BY nome');
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ message: 'Erro ao listar usuários', error: err.message });
+  }
+});
+
+app.post('/api/usuarios', async (req, res) => {
+  const { nome, email, senha, perfil } = req.body;
+  const usuarioLogado = req.headers['usuario'] || 'desconhecido';
+
+  try {
+    const pool = await sql.connect(config);
+    const senhaHash = await bcrypt.hash(senha, 10);
+
+    await pool.request()
+      .input('nome', sql.VarChar, nome)
+      .input('email', sql.VarChar, email)
+      .input('senha', sql.VarChar, senhaHash)
+      .input('perfil', sql.VarChar, perfil)
+      .query(`
+        INSERT INTO usuarios (nome, email, senha, perfil)
+        VALUES (@nome, @email, @senha, @perfil)
+      `);
+
+    await registrarLog(usuarioLogado, 'criar_usuario', { nome, email, perfil });
+    res.status(201).json({ message: 'Usuário criado com sucesso' });
+  } catch (err) {
+    res.status(500).json({ message: 'Erro ao criar usuário', error: err.message });
+  }
+});
+
+app.put('/api/usuarios', async (req, res) => {
+  const { id, nome, email, senha, perfil } = req.body;
+  const usuarioLogado = req.headers['usuario'] || 'desconhecido';
+
+  try {
+    const pool = await sql.connect(config);
+    if (senha) {
+      const senhaHash = await bcrypt.hash(senha, 10);
+      await pool.request()
+        .input('id', sql.Int, id)
+        .input('nome', sql.VarChar, nome)
+        .input('email', sql.VarChar, email)
+        .input('senha', sql.VarChar, senhaHash)
+        .input('perfil', sql.VarChar, perfil)
+        .query(`
+          UPDATE usuarios SET nome=@nome, email=@email, senha=@senha, perfil=@perfil WHERE id=@id
+        `);
+    } else {
+      await pool.request()
+        .input('id', sql.Int, id)
+        .input('nome', sql.VarChar, nome)
+        .input('email', sql.VarChar, email)
+        .input('perfil', sql.VarChar, perfil)
+        .query(`
+          UPDATE usuarios SET nome=@nome, email=@email, perfil=@perfil WHERE id=@id
+        `);
+    }
+
+    await registrarLog(usuarioLogado, 'atualizar_usuario', { id, nome, email, perfil });
+    res.json({ message: 'Usuário atualizado com sucesso' });
+  } catch (err) {
+    res.status(500).json({ message: 'Erro ao atualizar usuário', error: err.message });
+  }
+});
+
+app.delete('/api/usuarios/:id', async (req, res) => {
+  const { id } = req.params;
+  const usuarioLogado = req.headers['usuario'] || 'desconhecido';
+
+  try {
+    const pool = await sql.connect(config);
+    await pool.request()
+      .input('id', sql.Int, id)
+      .query('DELETE FROM usuarios WHERE id = @id');
+
+    await registrarLog(usuarioLogado, 'excluir_usuario', { id });
+    res.json({ message: 'Usuário excluído com sucesso' });
+  } catch (err) {
+    res.status(500).json({ message: 'Erro ao excluir usuário', error: err.message });
+  }
+});
+

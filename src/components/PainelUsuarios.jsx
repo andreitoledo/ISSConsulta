@@ -30,13 +30,24 @@ function PainelUsuarios() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
+      const headers = {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+        usuario: localStorage.getItem('nome')
+      };
       if (form.id) {
         await axios.put('http://localhost:3001/api/usuarios', form, { headers });
         setMensagem('Usuário atualizado com sucesso');
+        await axios.post('http://localhost:3001/api/logacesso', {
+          usuario: localStorage.getItem('nome'),
+          acao: 'atualizar_usuario'
+        });
       } else {
         await axios.post('http://localhost:3001/api/usuarios', form, { headers });
         setMensagem('Usuário criado com sucesso');
+        await axios.post('http://localhost:3001/api/logacesso', {
+          usuario: localStorage.getItem('nome'),
+          acao: 'criar_usuario'
+        });
       }
       setForm({ id: null, nome: '', email: '', senha: '', perfil: 'consulta' });
       carregarUsuarios();
@@ -53,9 +64,16 @@ function PainelUsuarios() {
     if (!window.confirm('Confirma a exclusão do usuário?')) return;
     try {
       await axios.delete(`http://localhost:3001/api/usuarios/${id}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          usuario: localStorage.getItem('nome')
+        }
       });
       setMensagem('Usuário excluído com sucesso');
+      await axios.post('http://localhost:3001/api/logacesso', {
+        usuario: localStorage.getItem('nome'),
+        acao: 'excluir_usuario'
+      });
       carregarUsuarios();
     } catch (err) {
       setMensagem('Erro ao excluir usuário');
