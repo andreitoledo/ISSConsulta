@@ -1,6 +1,7 @@
 // PainelUsuarios.jsx
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 
 function PainelUsuarios() {
   const [usuarios, setUsuarios] = useState([]);
@@ -27,6 +28,13 @@ function PainelUsuarios() {
     carregarUsuarios();
   }, []);
 
+  const registrarLog = async (acao) => {
+    await axios.post('http://localhost:3001/api/logacesso', {
+      usuario: localStorage.getItem('nome'),
+      acao: acao
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -37,17 +45,11 @@ function PainelUsuarios() {
       if (form.id) {
         await axios.put('http://localhost:3001/api/usuarios', form, { headers });
         setMensagem('Usuário atualizado com sucesso');
-        await axios.post('http://localhost:3001/api/logacesso', {
-          usuario: localStorage.getItem('nome'),
-          acao: 'atualizar_usuario'
-        });
+        await registrarLog('atualizar_usuario');
       } else {
         await axios.post('http://localhost:3001/api/usuarios', form, { headers });
         setMensagem('Usuário criado com sucesso');
-        await axios.post('http://localhost:3001/api/logacesso', {
-          usuario: localStorage.getItem('nome'),
-          acao: 'criar_usuario'
-        });
+        await registrarLog('criar_usuario');
       }
       setForm({ id: null, nome: '', email: '', senha: '', perfil: 'consulta' });
       carregarUsuarios();
@@ -70,10 +72,7 @@ function PainelUsuarios() {
         }
       });
       setMensagem('Usuário excluído com sucesso');
-      await axios.post('http://localhost:3001/api/logacesso', {
-        usuario: localStorage.getItem('nome'),
-        acao: 'excluir_usuario'
-      });
+      await registrarLog('excluir_usuario');
       carregarUsuarios();
     } catch (err) {
       setMensagem('Erro ao excluir usuário');
@@ -87,6 +86,14 @@ function PainelUsuarios() {
       setOrdenarPor(campo);
       setOrdemCrescente(true);
     }
+  };
+
+  const exportarParaExcel = () => {
+    const dadosParaExportar = usuariosFiltrados.map(({ id, ...rest }) => rest);
+    const ws = XLSX.utils.json_to_sheet(dadosParaExportar);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Usuários');
+    XLSX.writeFile(wb, 'usuarios.xlsx');
   };
 
   const usuariosFiltrados = usuarios.filter(u =>
@@ -107,15 +114,20 @@ function PainelUsuarios() {
 
   return (
     <div className="bg-white p-6 rounded shadow">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6 gap-2">
         <h2 className="text-2xl font-bold">Gerenciar Usuários</h2>
-        <input
-          type="text"
-          placeholder="Filtrar usuários..."
-          value={filtro}
-          onChange={(e) => setFiltro(e.target.value)}
-          className="border rounded px-3 py-1"
-        />
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Filtrar usuários..."
+            value={filtro}
+            onChange={(e) => setFiltro(e.target.value)}
+            className="border rounded px-3 py-1"
+          />
+          <button onClick={exportarParaExcel} className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700">
+            Exportar Excel
+          </button>
+        </div>
       </div>
 
       {mensagem && <p className="text-green-600 font-medium mb-4">{mensagem}</p>}
