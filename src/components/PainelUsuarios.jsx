@@ -6,6 +6,11 @@ function PainelUsuarios() {
   const [usuarios, setUsuarios] = useState([]);
   const [form, setForm] = useState({ id: null, nome: '', email: '', senha: '', perfil: 'consulta' });
   const [mensagem, setMensagem] = useState('');
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const [ordenarPor, setOrdenarPor] = useState('nome');
+  const [ordemCrescente, setOrdemCrescente] = useState(true);
+  const [filtro, setFiltro] = useState('');
+  const itensPorPagina = 10;
 
   const carregarUsuarios = async () => {
     try {
@@ -57,10 +62,42 @@ function PainelUsuarios() {
     }
   };
 
+  const handleOrdenar = (campo) => {
+    if (ordenarPor === campo) {
+      setOrdemCrescente(!ordemCrescente);
+    } else {
+      setOrdenarPor(campo);
+      setOrdemCrescente(true);
+    }
+  };
+
+  const usuariosFiltrados = usuarios.filter(u =>
+    u.nome.toLowerCase().includes(filtro.toLowerCase()) ||
+    u.email.toLowerCase().includes(filtro.toLowerCase()) ||
+    u.perfil.toLowerCase().includes(filtro.toLowerCase())
+  );
+
+  const usuariosOrdenados = [...usuariosFiltrados].sort((a, b) => {
+    if (a[ordenarPor] < b[ordenarPor]) return ordemCrescente ? -1 : 1;
+    if (a[ordenarPor] > b[ordenarPor]) return ordemCrescente ? 1 : -1;
+    return 0;
+  });
+
+  const indexInicial = (paginaAtual - 1) * itensPorPagina;
+  const usuariosPaginados = usuariosOrdenados.slice(indexInicial, indexInicial + itensPorPagina);
+  const totalPaginas = Math.ceil(usuariosFiltrados.length / itensPorPagina);
+
   return (
     <div className="bg-white p-6 rounded shadow">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">Gerenciar Usuários</h2>
+        <input
+          type="text"
+          placeholder="Filtrar usuários..."
+          value={filtro}
+          onChange={(e) => setFiltro(e.target.value)}
+          className="border rounded px-3 py-1"
+        />
       </div>
 
       {mensagem && <p className="text-green-600 font-medium mb-4">{mensagem}</p>}
@@ -88,7 +125,7 @@ function PainelUsuarios() {
           value={form.senha}
           onChange={(e) => setForm({ ...form, senha: e.target.value })}
           className="border rounded px-3 py-2"
-          required={!form.id} // senha obrigatória apenas ao criar
+          required={!form.id}
         />
         <select
           value={form.perfil}
@@ -106,36 +143,40 @@ function PainelUsuarios() {
       <table className="w-full text-left border">
         <thead>
           <tr className="bg-gray-100">
-            <th className="p-2 border">Nome</th>
-            <th className="p-2 border">Email</th>
-            <th className="p-2 border">Perfil</th>
+            <th className="p-2 border cursor-pointer" onClick={() => handleOrdenar('nome')}>Nome</th>
+            <th className="p-2 border cursor-pointer" onClick={() => handleOrdenar('email')}>Email</th>
+            <th className="p-2 border cursor-pointer" onClick={() => handleOrdenar('perfil')}>Perfil</th>
             <th className="p-2 border">Ações</th>
           </tr>
         </thead>
         <tbody>
-          {usuarios.map((u) => (
+          {usuariosPaginados.map((u) => (
             <tr key={u.id} className="border">
               <td className="p-2 border">{u.nome}</td>
               <td className="p-2 border">{u.email}</td>
               <td className="p-2 border">{u.perfil}</td>
               <td className="p-2 border space-x-2">
-                <button
-                  onClick={() => handleEditar(u)}
-                  className="text-blue-600 hover:underline"
-                >
-                  Editar
-                </button>
-                <button
-                  onClick={() => handleExcluir(u.id)}
-                  className="text-red-600 hover:underline"
-                >
-                  Excluir
-                </button>
+                <button onClick={() => handleEditar(u)} className="text-blue-600 hover:underline">Editar</button>
+                <button onClick={() => handleExcluir(u.id)} className="text-red-600 hover:underline">Excluir</button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      <div className="flex justify-between items-center mt-4">
+        <button
+          onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
+          disabled={paginaAtual === 1}
+          className="px-4 py-1 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
+        >Anterior</button>
+        <span className="text-sm">Página {paginaAtual} de {totalPaginas}</span>
+        <button
+          onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
+          disabled={paginaAtual === totalPaginas}
+          className="px-4 py-1 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
+        >Próxima</button>
+      </div>
     </div>
   );
 }
