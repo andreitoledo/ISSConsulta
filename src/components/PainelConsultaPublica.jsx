@@ -1,4 +1,4 @@
-// PainelConsultaPublica.jsx com headers de usuário para log no backend
+// PainelConsultaPublica.jsx atualizado com layout responsivo, ordenação, paginação, exportação e seleção
 import React, { useState } from 'react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
@@ -14,13 +14,10 @@ function PainelConsultaPublica() {
   const [ordemAsc, setOrdemAsc] = useState(true);
   const porPagina = 10;
 
-  const headers = { headers: { usuario: localStorage.getItem('nome') || 'desconhecido' } };
-
   const handleConsulta = async () => {
     try {
       const response = await axios.get('http://localhost:3001/api/consulta', {
-        params: { municipio, servico },
-        ...headers
+        params: { municipio, servico }
       });
       setResultado(response.data);
       setMensagem(response.data.length === 0 ? 'Nenhum registro encontrado.' : 'Consulta realizada com sucesso.');
@@ -64,7 +61,7 @@ function PainelConsultaPublica() {
 
   return (
     <div className="bg-white p-4 rounded shadow mt-4">
-      <h2 className="text-xl font-bold mb-4">Consulta Pública</h2>
+      <h2 className="text-xl font-bold mb-4">Consulta Pública de Alíquota de ISS</h2>
 
       <div className="grid md:grid-cols-2 gap-4 mb-4">
         <div>
@@ -73,6 +70,7 @@ function PainelConsultaPublica() {
             value={municipio}
             onChange={(e) => setMunicipio(e.target.value)}
             className="w-full border px-3 py-2 rounded"
+            placeholder="Digite o município"
           />
         </div>
         <div>

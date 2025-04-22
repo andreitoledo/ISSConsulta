@@ -2,21 +2,31 @@ import React, { useState, useEffect } from 'react';
 import TelaLogin from './components/TelaLogin';
 import PainelCompleto from './components/PainelCompleto';
 import PainelConsultaPublica from './components/PainelConsultaPublica';
+import PainelHistoricoAcoes from './components/PainelHistoricoAcoes';
+import { FiClock, FiLogOut } from 'react-icons/fi';
 
 function App() {
   const [perfil, setPerfil] = useState(localStorage.getItem('perfil'));
   const [nome, setNome] = useState(localStorage.getItem('nome'));
+  const [telaAtual, setTelaAtual] = useState('principal');
 
   const handleLogin = (perfil) => {
     setPerfil(perfil);
     setNome(localStorage.getItem('nome'));
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const usuario = localStorage.getItem('nome');
+    try {
+      await axios.post('http://localhost:3001/api/logout', { usuario });
+    } catch (err) {
+      console.warn('Erro ao registrar logout:', err);
+    }
     localStorage.clear();
     setPerfil(null);
     setNome(null);
   };
+  
 
   useEffect(() => {
     document.title = 'ISS Consulta';
@@ -31,12 +41,29 @@ function App() {
               <h1 className="text-2xl font-bold text-gray-800">Sistema ISS Consulta</h1>
               <p className="text-sm text-gray-600">Bem-vindo, {nome}</p>
             </div>
-            <button onClick={handleLogout} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
-              Sair
-            </button>
+            <div className="flex items-center gap-3">
+              {perfil === 'admin' && (
+                <button
+                  onClick={() => setTelaAtual(telaAtual === 'historico' ? 'principal' : 'historico')}
+                  className="flex items-center gap-2 bg-gray-200 text-gray-800 px-3 py-2 rounded hover:bg-gray-300"
+                >
+                  <FiClock className="text-xl" />
+                  {telaAtual === 'historico' ? 'Voltar' : 'Histórico'}
+                </button>
+              )}
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700"
+              >
+                <FiLogOut className="text-xl" />
+                Sair
+              </button>
+            </div>
           </div>
 
-          {perfil === 'admin' && <PainelCompleto />}
+          {/* Telas renderizadas conforme perfil e estado */}
+          {perfil === 'admin' && telaAtual === 'historico' && <PainelHistoricoAcoes />}
+          {perfil === 'admin' && telaAtual === 'principal' && <PainelCompleto />}
           {perfil === 'consulta' && <PainelConsultaPublica />}
         </div>
       ) : (

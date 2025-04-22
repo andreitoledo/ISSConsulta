@@ -199,3 +199,63 @@ app.post('/api/login', async (req, res) => {
     res.status(500).json({ message: 'Erro ao realizar login', error: err.message });
   }
 });
+
+app.get('/api/logs', async (req, res) => {
+  try {
+    const pool = await sql.connect(config);
+    const result = await pool.request()
+      .query('SELECT * FROM logs_acoes ORDER BY id DESC');
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ message: 'Erro ao buscar logs', error: err.message });
+  }
+});
+
+// REGISTRAR LOG ACESSO
+const registrarLogAcesso = async (usuario, acao) => {
+  try {
+    const pool = await sql.connect(config);
+    await pool.request()
+      .input('usuario', sql.NVarChar, usuario)
+      .input('acao', sql.NVarChar, acao)
+      .query(`INSERT INTO logs_acessos (usuario, acao) VALUES (@usuario, @acao)`);
+  } catch (err) {
+    console.error('Erro ao registrar log de acesso:', err);
+  }
+};
+
+// Atualizar a rota de login para registrar o ace
+// LOGIN
+app.post('/api/login', async (req, res) => {
+  const { email, senha } = req.body;
+  try {
+    const pool = await sql.connect(config);
+    const result = await pool.request()
+      .input('email', sql.VarChar, email)
+      .input('senha', sql.VarChar, senha)
+      .query('SELECT nome, perfil FROM usuarios WHERE email = @email AND senha = @senha');
+
+    if (result.recordset.length > 0) {
+      const { nome, perfil } = result.recordset[0];
+      await registrarLogAcesso(email, 'login'); // ← aqui registra o log
+      res.json({ token: 'fake-token', nome, perfil }); // token fictício
+    } else {
+      res.status(401).json({ message: 'Credenciais inválidas' });
+    }
+  } catch (err) {
+    res.status(500).json({ message: 'Erro no login', error: err.message });
+  }
+});
+
+app.post('/api/logout', async (req, res) => {
+  const { usuario } = req.body;
+  try {
+    await registrarLogAcesso(usuario, 'logout');
+    res.status(200).json({ message: 'Logout registrado' });
+  } catch (err) {
+    res.status(500).json({ message: 'Erro ao registrar logout' });
+  }
+});
+
+
+
