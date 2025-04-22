@@ -1,42 +1,37 @@
+// App.jsx
 import React, { useState, useEffect } from 'react';
 import TelaLogin from './components/TelaLogin';
 import PainelCompleto from './components/PainelCompleto';
 import PainelConsultaPublica from './components/PainelConsultaPublica';
 import PainelHistoricoAcoes from './components/PainelHistoricoAcoes';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-
+import PainelUsuarios from './components/PainelUsuarios';
 
 function App() {
   const [perfil, setPerfil] = useState(localStorage.getItem('perfil'));
   const [nome, setNome] = useState(localStorage.getItem('nome'));
   const [mostrarHistorico, setMostrarHistorico] = useState(false);
+  const [mostrarUsuarios, setMostrarUsuarios] = useState(false);
 
   const handleLogin = (perfil) => {
-    const nomeSalvo = localStorage.getItem('nome');
     setPerfil(perfil);
-    setNome(nomeSalvo);
+    setNome(localStorage.getItem('nome'));
   };
 
-  const handleLogout = async () => {
-    const nomeUsuario = localStorage.getItem('nome');
-    try {
-      await fetch('http://localhost:3001/api/logacesso', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ usuario: nomeUsuario, acao: 'logout' }),
-      });
-    } catch (e) {
-      console.warn('Não foi possível registrar o log de logout.');
-    }
-
+  const handleLogout = () => {
     localStorage.clear();
     setPerfil(null);
     setNome(null);
-    setMostrarHistorico(false);
   };
 
-  const toggleHistorico = () => setMostrarHistorico(prev => !prev);
+  const toggleHistorico = () => {
+    setMostrarHistorico((prev) => !prev);
+    setMostrarUsuarios(false);
+  };
+
+  const toggleUsuarios = () => {
+    setMostrarUsuarios((prev) => !prev);
+    setMostrarHistorico(false);
+  };
 
   useEffect(() => {
     document.title = 'ISS Consulta';
@@ -53,12 +48,20 @@ function App() {
             </div>
             <div className="flex gap-4">
               {perfil === 'admin' && (
-                <button
-                  onClick={toggleHistorico}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
-                >
-                  {mostrarHistorico ? 'Fechar Histórico' : 'Ver Histórico'}
-                </button>
+                <>
+                  <button
+                    onClick={toggleHistorico}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+                  >
+                    {mostrarHistorico ? 'Fechar Histórico' : 'Ver Histórico'}
+                  </button>
+                  <button
+                    onClick={toggleUsuarios}
+                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                  >
+                    {mostrarUsuarios ? 'Fechar Usuários' : 'Gerenciar Usuários'}
+                  </button>
+                </>
               )}
               <button
                 onClick={handleLogout}
@@ -71,6 +74,8 @@ function App() {
 
           {mostrarHistorico ? (
             <PainelHistoricoAcoes />
+          ) : mostrarUsuarios ? (
+            <PainelUsuarios />
           ) : perfil === 'admin' ? (
             <PainelCompleto />
           ) : (
@@ -82,9 +87,6 @@ function App() {
           <TelaLogin onLogin={handleLogin} />
         </div>
       )}
-
-<ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
-
     </main>
   );
 }
