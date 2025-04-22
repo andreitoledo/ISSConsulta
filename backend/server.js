@@ -4,6 +4,8 @@ import sql from 'mssql';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
+import dotenv from 'dotenv';
+dotenv.config();
 
 
 const app = express();
@@ -13,15 +15,16 @@ app.use(cors());
 app.use(express.json());
 
 const config = {
-  user: 'iss_user',
-  password: 'Admin@123',
-  server: 'localhost',
-  database: 'ISSConsulta',
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  server: process.env.DB_SERVER,
+  database: process.env.DB_DATABASE,
   options: {
-    encrypt: false,
+    encrypt: process.env.DB_ENCRYPT === 'true',
     trustServerCertificate: true
   }
 };
+
 
 // Conectar ao banco
 sql.connect(config).then(() => {
