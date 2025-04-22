@@ -1,7 +1,10 @@
-// IMPORTS INICIAIS
+// server.js
 import express from 'express';
 import sql from 'mssql';
 import cors from 'cors';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
+
 
 const app = express();
 const port = 3001;
@@ -16,17 +19,16 @@ const config = {
   database: 'ISSConsulta',
   options: {
     encrypt: false,
-    enableArithAbort: true,
     trustServerCertificate: true
   }
 };
 
-// Conectar SQL
+// Conectar ao banco
 sql.connect(config).then(() => {
-  console.log('Conectado ao SQL Server');
-}).catch(err => console.error('Erro na conexão SQL:', err));
+  console.log('✅ Conectado ao SQL Server');
+}).catch(err => console.error('❌ Erro na conexão SQL:', err));
 
-// FUNÇÃO AUXILIAR PARA LOG
+// Função para registrar logs
 const registrarLog = async (usuario, acao, dados) => {
   try {
     const pool = await sql.connect(config);
@@ -34,11 +36,97 @@ const registrarLog = async (usuario, acao, dados) => {
       .input('usuario', sql.NVarChar, usuario)
       .input('acao', sql.NVarChar, acao)
       .input('registro_afetado', sql.NVarChar(sql.MAX), JSON.stringify(dados))
-      .query(`INSERT INTO logs_acoes (usuario, acao, registro_afetado) VALUES (@usuario, @acao, @registro_afetado)`);
+      .query(`
+        INSERT INTO logs_acoes (usuario, acao, registro_afetado)
+        VALUES (@usuario, @acao, @registro_afetado)
+      `);
   } catch (err) {
     console.error('Erro ao registrar log:', err);
   }
 };
+
+// LOGIN
+app.post('/api/login', async (req, res) => {
+  const { email, senha } = req.body;
+
+  try {
+    const pool = await sql.connect(config);
+    const result = await pool.request()
+      .input('email', sql.VarChar, email)
+      .query('SELECT * FROM usuarios WHERE email = @email');
+
+    if (result.recordset.length === 0) {
+      return res.status(401).json({ message: 'Credenciais inválidas' });
+    }
+
+    const usuario = result.recordset[0];
+    const senhaCorreta = await bcrypt.compare(senha, usuario.senha);
+
+    if (!senhaCorreta) {
+      return res.status(401).json({ message: 'Credenciais inválidas' });
+    }
+
+    const token = jwt.sign({ id: usuario.id, perfil: usuario.perfil }, 'chave_secreta');
+    res.json({ token, perfil: usuario.perfil, nome: usuario.nome });
+  } catch (err) {
+    console.error('Erro ao realizar login:', err);
+    res.status(500).json({ message: 'Erro interno ao realizar login.' });
+  }
+});
+
+// LOG DE LOGIN/LOGOUT
+app.post('/api/logacesso', async (req, res) => {
+  const { usuario, acao } = req.body;
+
+  try {
+    const pool = await sql.connect(config);
+    await pool.request()
+      .input('usuario', sql.NVarChar, usuario)
+      .input('acao', sql.NVarChar, acao)
+      .input('registro_afetado', sql.NVarChar(sql.MAX), JSON.stringify({ acao }))
+      .query(`
+        INSERT INTO logs_acoes (usuario, acao, registro_afetado)
+        VALUES (@usuario, @acao, @registro_afetado)
+      `);
+    res.json({ message: 'Log de acesso registrado' });
+  } catch (err) {
+    console.error('Erro ao registrar log de acesso:', err);
+    res.status(500).json({ message: 'Erro ao registrar log de acesso', error: err.message });
+  }
+});
+
+
+// CONSULTA HISTÓRICO
+app.get('/api/historico', async (req, res) => {
+  try {
+    const pool = await sql.connect(config);
+    const result = await pool.request().query('SELECT * FROM logs_acoes ORDER BY data_hora DESC');
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ message: 'Erro ao consultar histórico', error: err.message });
+  }
+});
+
+// CONSULTA REGISTROS
+app.get('/api/consulta', async (req, res) => {
+  const { municipio, servico, tomador, prestacao, emissor, aliquota } = req.query;
+
+  try {
+    const pool = await sql.connect(config);
+    let query = 'SELECT * FROM aliquotas_iss WHERE 1=1';
+    if (municipio) query += ` AND LOWER(municipio) = LOWER('${municipio}')`;
+    if (servico) query += ` AND servico = '${servico}'`;
+    if (tomador) query += ` AND tomador = '${tomador}'`;
+    if (prestacao) query += ` AND prestacao = '${prestacao}'`;
+    if (emissor) query += ` AND emissor = '${emissor}'`;
+    if (aliquota) query += ` AND aliquota = ${aliquota}`;
+
+    const result = await pool.request().query(query);
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ message: 'Erro ao consultar', error: err.message });
+  }
+});
 
 // INSERIR
 app.post('/api/inserir', async (req, res) => {
@@ -126,136 +214,6 @@ app.delete('/api/excluir', async (req, res) => {
   }
 });
 
-// CONSULTA (sem log)
-app.get('/api/consulta', async (req, res) => {
-  const { municipio, servico, tomador, prestacao, emissor, aliquota } = req.query;
-
-  try {
-    const pool = await sql.connect(config);
-    let query = 'SELECT * FROM aliquotas_iss WHERE 1=1';
-    if (municipio) query += ` AND LOWER(municipio) = LOWER('${municipio}')`;
-    if (servico) query += ` AND servico = '${servico}'`;
-    if (tomador) query += ` AND tomador = '${tomador}'`;
-    if (prestacao) query += ` AND prestacao = '${prestacao}'`;
-    if (emissor) query += ` AND emissor = '${emissor}'`;
-    if (aliquota) query += ` AND aliquota = ${aliquota}`;
-
-    const result = await pool.request().query(query);
-    res.json(result.recordset);
-  } catch (err) {
-    res.status(500).json({ message: 'Erro ao consultar', error: err.message });
-  }
-});
-
 app.listen(port, () => {
-  console.log(`Servidor rodando em http://localhost:${port}`);
+  console.log(`🚀 Servidor rodando em http://localhost:${port}`);
 });
-
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-
-// Simulação de chave secreta (em produção, use uma variável de ambiente segura)
-const JWT_SECRET = 'chave_super_secreta';
-
-// ROTA DE LOGIN
-app.post('/api/login', async (req, res) => {
-  const { email, senha } = req.body;
-
-  if (!email || !senha) {
-    return res.status(400).json({ message: 'Email e senha são obrigatórios.' });
-  }
-
-  try {
-    const pool = await sql.connect(config);
-    const result = await pool.request()
-      .input('email', sql.VarChar, email)
-      .query('SELECT * FROM usuarios WHERE email = @email');
-
-    if (result.recordset.length === 0) {
-      return res.status(401).json({ message: 'Usuário não encontrado.' });
-    }
-
-    const usuario = result.recordset[0];
-
-    // Se a senha estiver criptografada:
-    const senhaValida = await bcrypt.compare(senha, usuario.senha);
-
-    if (!senhaValida) {
-      return res.status(401).json({ message: 'Senha incorreta.' });
-    }
-
-    const token = jwt.sign(
-      { id: usuario.id, nome: usuario.nome, perfil: usuario.perfil },
-      JWT_SECRET,
-      { expiresIn: '4h' }
-    );
-
-    res.json({
-      token,
-      perfil: usuario.perfil,
-      nome: usuario.nome
-    });
-  } catch (err) {
-    res.status(500).json({ message: 'Erro ao realizar login', error: err.message });
-  }
-});
-
-app.get('/api/logs', async (req, res) => {
-  try {
-    const pool = await sql.connect(config);
-    const result = await pool.request()
-      .query('SELECT * FROM logs_acoes ORDER BY id DESC');
-    res.json(result.recordset);
-  } catch (err) {
-    res.status(500).json({ message: 'Erro ao buscar logs', error: err.message });
-  }
-});
-
-// REGISTRAR LOG ACESSO
-const registrarLogAcesso = async (usuario, acao) => {
-  try {
-    const pool = await sql.connect(config);
-    await pool.request()
-      .input('usuario', sql.NVarChar, usuario)
-      .input('acao', sql.NVarChar, acao)
-      .query(`INSERT INTO logs_acessos (usuario, acao) VALUES (@usuario, @acao)`);
-  } catch (err) {
-    console.error('Erro ao registrar log de acesso:', err);
-  }
-};
-
-// Atualizar a rota de login para registrar o ace
-// LOGIN
-app.post('/api/login', async (req, res) => {
-  const { email, senha } = req.body;
-  try {
-    const pool = await sql.connect(config);
-    const result = await pool.request()
-      .input('email', sql.VarChar, email)
-      .input('senha', sql.VarChar, senha)
-      .query('SELECT nome, perfil FROM usuarios WHERE email = @email AND senha = @senha');
-
-    if (result.recordset.length > 0) {
-      const { nome, perfil } = result.recordset[0];
-      await registrarLogAcesso(email, 'login'); // ← aqui registra o log
-      res.json({ token: 'fake-token', nome, perfil }); // token fictício
-    } else {
-      res.status(401).json({ message: 'Credenciais inválidas' });
-    }
-  } catch (err) {
-    res.status(500).json({ message: 'Erro no login', error: err.message });
-  }
-});
-
-app.post('/api/logout', async (req, res) => {
-  const { usuario } = req.body;
-  try {
-    await registrarLogAcesso(usuario, 'logout');
-    res.status(200).json({ message: 'Logout registrado' });
-  } catch (err) {
-    res.status(500).json({ message: 'Erro ao registrar logout' });
-  }
-});
-
-
-

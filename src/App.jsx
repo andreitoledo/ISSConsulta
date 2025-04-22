@@ -3,30 +3,37 @@ import TelaLogin from './components/TelaLogin';
 import PainelCompleto from './components/PainelCompleto';
 import PainelConsultaPublica from './components/PainelConsultaPublica';
 import PainelHistoricoAcoes from './components/PainelHistoricoAcoes';
-import { FiClock, FiLogOut } from 'react-icons/fi';
 
 function App() {
   const [perfil, setPerfil] = useState(localStorage.getItem('perfil'));
   const [nome, setNome] = useState(localStorage.getItem('nome'));
-  const [telaAtual, setTelaAtual] = useState('principal');
+  const [mostrarHistorico, setMostrarHistorico] = useState(false);
 
   const handleLogin = (perfil) => {
+    const nomeSalvo = localStorage.getItem('nome');
     setPerfil(perfil);
-    setNome(localStorage.getItem('nome'));
+    setNome(nomeSalvo);
   };
 
   const handleLogout = async () => {
-    const usuario = localStorage.getItem('nome');
+    const nomeUsuario = localStorage.getItem('nome');
     try {
-      await axios.post('http://localhost:3001/api/logout', { usuario });
-    } catch (err) {
-      console.warn('Erro ao registrar logout:', err);
+      await fetch('http://localhost:3001/api/logacesso', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usuario: nomeUsuario, acao: 'logout' }),
+      });
+    } catch (e) {
+      console.warn('Não foi possível registrar o log de logout.');
     }
+
     localStorage.clear();
     setPerfil(null);
     setNome(null);
+    setMostrarHistorico(false);
   };
-  
+
+  const toggleHistorico = () => setMostrarHistorico(prev => !prev);
 
   useEffect(() => {
     document.title = 'ISS Consulta';
@@ -41,30 +48,31 @@ function App() {
               <h1 className="text-2xl font-bold text-gray-800">Sistema ISS Consulta</h1>
               <p className="text-sm text-gray-600">Bem-vindo, {nome}</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex gap-4">
               {perfil === 'admin' && (
                 <button
-                  onClick={() => setTelaAtual(telaAtual === 'historico' ? 'principal' : 'historico')}
-                  className="flex items-center gap-2 bg-gray-200 text-gray-800 px-3 py-2 rounded hover:bg-gray-300"
+                  onClick={toggleHistorico}
+                  className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
                 >
-                  <FiClock className="text-xl" />
-                  {telaAtual === 'historico' ? 'Voltar' : 'Histórico'}
+                  {mostrarHistorico ? 'Fechar Histórico' : 'Ver Histórico'}
                 </button>
               )}
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-2 bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700"
+                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
               >
-                <FiLogOut className="text-xl" />
                 Sair
               </button>
             </div>
           </div>
 
-          {/* Telas renderizadas conforme perfil e estado */}
-          {perfil === 'admin' && telaAtual === 'historico' && <PainelHistoricoAcoes />}
-          {perfil === 'admin' && telaAtual === 'principal' && <PainelCompleto />}
-          {perfil === 'consulta' && <PainelConsultaPublica />}
+          {mostrarHistorico ? (
+            <PainelHistoricoAcoes />
+          ) : perfil === 'admin' ? (
+            <PainelCompleto />
+          ) : (
+            <PainelConsultaPublica />
+          )}
         </div>
       ) : (
         <div className="flex items-center justify-center min-h-screen bg-gray-200">
