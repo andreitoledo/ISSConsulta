@@ -9,7 +9,9 @@ function PainelUsuarios() {
 
   const carregarUsuarios = async () => {
     try {
-      const res = await axios.get('http://localhost:3001/api/usuarios');
+      const res = await axios.get('http://localhost:3001/api/usuarios', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
       setUsuarios(res.data);
     } catch (err) {
       setMensagem('Erro ao carregar usuários');
@@ -23,11 +25,12 @@ function PainelUsuarios() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
       if (form.id) {
-        await axios.put('http://localhost:3001/api/usuarios', form);
+        await axios.put('http://localhost:3001/api/usuarios', form, { headers });
         setMensagem('Usuário atualizado com sucesso');
       } else {
-        await axios.post('http://localhost:3001/api/usuarios', form);
+        await axios.post('http://localhost:3001/api/usuarios', form, { headers });
         setMensagem('Usuário criado com sucesso');
       }
       setForm({ id: null, nome: '', email: '', senha: '', perfil: 'consulta' });
@@ -44,7 +47,9 @@ function PainelUsuarios() {
   const handleExcluir = async (id) => {
     if (!window.confirm('Confirma a exclusão do usuário?')) return;
     try {
-      await axios.delete(`http://localhost:3001/api/usuarios/${id}`);
+      await axios.delete(`http://localhost:3001/api/usuarios/${id}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
       setMensagem('Usuário excluído com sucesso');
       carregarUsuarios();
     } catch (err) {
@@ -54,7 +59,9 @@ function PainelUsuarios() {
 
   return (
     <div className="bg-white p-6 rounded shadow">
-      <h2 className="text-2xl font-bold mb-4">Gerenciar Usuários</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold">Gerenciar Usuários</h2>
+      </div>
 
       {mensagem && <p className="text-green-600 font-medium mb-4">{mensagem}</p>}
 
