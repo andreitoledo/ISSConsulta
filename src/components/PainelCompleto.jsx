@@ -97,7 +97,12 @@ function PainelCompleto() {
   const totalPaginas = Math.ceil(dadosOrdenados.length / porPagina);
   const dadosPaginados = dadosOrdenados.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina);
 
-  const opcoesServicos = ['11.04', '16.02'];
+  const opcoesServicos = [
+    { codigo: '11.04', descricao: 'Carga e Descarga - 11.04' },
+    { codigo: '16.02', descricao: 'Transporte Municipal - 16.02' },
+    { codigo: '25.03', descricao: 'Serviço Exemplo - 25.03' },
+    { codigo: '99.01', descricao: 'Outro Serviço - 99.01' }
+  ];
 
   return (
     <div className="bg-white p-6 rounded shadow">
@@ -112,8 +117,8 @@ function PainelCompleto() {
         <input placeholder="Município" className="border px-3 py-2 rounded" value={novoRegistro.municipio} onChange={(e) => setNovoRegistro({ ...novoRegistro, municipio: e.target.value })} />
         <select className="border px-3 py-2 rounded" value={novoRegistro.servico} onChange={(e) => setNovoRegistro({ ...novoRegistro, servico: e.target.value })}>
           <option value="">Selecione o Serviço</option>
-          {opcoesServicos.map((servico, idx) => (
-            <option key={idx} value={servico}>{servico}</option>
+          {opcoesServicos.map((s, idx) => (
+            <option key={idx} value={s.codigo}>{s.descricao}</option>
           ))}
         </select>
         <input placeholder="Tomador" className="border px-3 py-2 rounded" value={novoRegistro.tomador} onChange={(e) => setNovoRegistro({ ...novoRegistro, tomador: e.target.value })} />

@@ -3,6 +3,9 @@ import TelaLogin from './components/TelaLogin';
 import PainelCompleto from './components/PainelCompleto';
 import PainelConsultaPublica from './components/PainelConsultaPublica';
 import PainelHistoricoAcoes from './components/PainelHistoricoAcoes';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
 
 function App() {
   const [perfil, setPerfil] = useState(localStorage.getItem('perfil'));
@@ -79,6 +82,9 @@ function App() {
           <TelaLogin onLogin={handleLogin} />
         </div>
       )}
+
+<ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
+
     </main>
   );
 }
