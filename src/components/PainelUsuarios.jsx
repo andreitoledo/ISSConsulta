@@ -47,14 +47,18 @@ function PainelUsuarios() {
         setMensagem('Usuário atualizado com sucesso');
         await registrarLog('atualizar_usuario');
       } else {
-        await axios.post('http://localhost:3001/api/usuarios', form, { headers });
-        setMensagem('Usuário criado com sucesso');
+        const resposta = await axios.post('http://localhost:3001/api/usuarios', form, { headers });
+        setMensagem(resposta.data.message || 'Usuário criado com sucesso');
         await registrarLog('criar_usuario');
       }
       setForm({ id: null, nome: '', email: '', senha: '', perfil: 'consulta' });
       carregarUsuarios();
     } catch (err) {
-      setMensagem('Erro ao salvar usuário');
+      if (err.response?.status === 409) {
+        setMensagem('E-mail já está sendo utilizado');
+      } else {
+        setMensagem('Erro ao salvar usuário');
+      }
     }
   };
 
